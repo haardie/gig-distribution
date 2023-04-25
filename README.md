@@ -1,1 +1,3 @@
 # gig-distribution
+
+This is the small project on GIG distribution family. README to be filled later...
