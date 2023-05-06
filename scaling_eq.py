@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 from scipy.special import kv
-from scipy.optimize import newton
-
 import numpy as np
-from scipy.misc import derivative
 
 
 def f(alpha, beta, lambda_):
@@ -35,8 +32,8 @@ beta = 2.0
 lambda0 = 1.0
 
 lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0, alpha, beta, 1000, 1e-8 )
-print(f'Newton-Raphson lambda: {lambda_nr}, iterations: {iterations_nr}')
-
+print(f'lambda({alpha}, {beta}): {lambda_nr}, init.: {lambda0}, iterations: {iterations_nr}')
+print('-------------------------')
 
 plt.rcParams['text.usetex'] = True
 
@@ -45,23 +42,56 @@ plt.rcParams['font.size'] = 10
 
 
 colors = ['#b7094c', '#a01a58', '#892b64', '#723c70', '#5c4d7d', '#455e89', '#2e6f95', '#1780a1', '#0091ad', '#00a2b9', '#00b3c5']
-lime = '#BEE300'
-darklime = '#6EB500'
+lime = '#bee300'
+darklime = '#6eb500'
 
 
-
-lambdas = np.linspace(0.01, 3.0, 1000)
+lambdas = np.linspace(0.01, 5.0, 1000)
 y = [f(alpha, beta, l) for l in lambdas]
+
 plt.plot(lambdas, y, linewidth=2.4, label=r'$f(\lambda(\alpha, \beta))\equiv \sqrt{\frac{\beta}{\lambda}}\frac{\mathcal{K}_{\alpha + 1}(2\sqrt{\beta\lambda})}{\mathcal{K}_{\alpha}(2\sqrt{\beta\lambda})} - 1 = 0$', color=colors[0], zorder=0)
 plt.scatter(lambdas_nr, [0]*len(lambdas_nr), label='Newton-Raphsonovy iterované odhady', color=colors[4], s=30, zorder=1, alpha=0.8)
 plt.scatter(lambda0, 0, label=r'Počáteční volba $\lambda = \lambda_0$', color=colors[6], s=50, zorder=2, edgecolors=lime, linewidth=1)
 plt.scatter(lambda_nr, 0, label=r'Aproximace řešení: $\lambda(\alpha, \beta) \doteq$ {:.3f}'.format(lambda_nr), color=lime, s=200, marker='*', zorder=3, edgecolors=colors[6], linewidth=1)
-plt.axvline(x=lambda_nr, color='#BDBBBB', linestyle='--', linewidth=1.2, zorder=0)
-plt.axhline(y=0, color='#BDBBBB', linestyle='--', linewidth=1.2, zorder=0)
+plt.axvline(x=lambda_nr, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
+plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
 plt.xlim(0, 2.5)
 plt.ylim(-0.3, 2)
 plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$f(\lambda)$')
 plt.legend()
 plt.savefig('scaling_eq_sol.png', dpi=600)
+plt.show()
+
+alpha_arr = [-0.5, 0, 2]
+beta_arr = [1, 2, 3, 4]
+lambda0_arr = [1.5, 2, 4]
+
+lambda_nr_arr = []
+
+greens = [lime, '#9fcf30', '#60cd70']
+for c, i in enumerate(range(len(alpha_arr))):
+
+    alpha = alpha_arr[i]
+    lambda0 = lambda0_arr[i]
+    lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0_arr[i], alpha_arr[i], beta, 1000, 1e-8)
+
+    print(f'lambda_{i+1}: {lambda_nr}, init.: {lambda0_arr[i]}, iterations: {iterations_nr + 1}')
+
+    lambda_nr_arr.append(lambda_nr)
+
+    y_mult = [f(alpha_arr[i], beta, l) for l in lambdas]
+
+    plt.plot(lambdas, y_mult, linewidth=2.4, label=r'$f_{} (\lambda(\alpha_{{}}, \beta))$'.format(i+1).format(i+1), color=colors[c], zorder=0)
+    plt.scatter(lambda0_arr[i], 0, color=greens[i], s=50, zorder=2)
+    plt.scatter(lambda_nr_arr[i], 0, color=greens[i], s=200, marker='*', zorder=3, edgecolors=colors[6], linewidth=1.2)
+    plt.scatter(lambdas_nr, [0]*len(lambdas_nr), color=colors[c+4], s=10, zorder=1, alpha=0.4)
+    plt.axvline(x=lambda_nr_arr[i], color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
+    plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
+plt.ylim(-0.3, 2)
+plt.xlim(0, 5)
+plt.xlabel(r'$\lambda$')
+plt.ylabel(r'$f(\lambda)$')
+plt.legend()
+plt.savefig('scaling_eq_sol_mult.png', dpi=600)
 plt.show()
