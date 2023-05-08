@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from scipy.special import kv
 import numpy as np
 
-
+# define the 'scaling function' and its derivative
 def f(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
     return np.sqrt(beta / lambda_) * kv(alpha + 1, arg) / kv(alpha, arg) - 1
@@ -16,6 +16,7 @@ def df(alpha, beta, lambda_):
             lambda_ * np.sqrt(beta * lambda_))) - (frac_B * frac_K) ** 2 - frac_B ** 2
 
 
+# define the Newton-Raphson method
 def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance):
     lambda_ = lambda_0
     lambda_vals = [lambda_]
@@ -28,25 +29,29 @@ def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance):
 
     return lambda_, lambda_vals, i + 1
 
-
-alpha = -1.0
-beta = 2.0
-lambda0 = 1.0
-
-lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0, alpha, beta, 500, 1e-6)
-print(f'lambda({alpha}, {beta}): {lambda_nr}, init.: {lambda0}, iterations: {iterations_nr}')
-print('-------------------------')
-
+# set tex interpreter and define colors
 plt.rcParams['text.usetex'] = True
 
 plt.rcParams['font.family'] = 'Palatino'
 plt.rcParams['font.size'] = 10
 
+lime = '#bee300'
 colors = ['#b7094c', '#a01a58', '#892b64', '#723c70', '#5c4d7d', '#455e89', '#2e6f95', '#1780a1', '#0091ad', '#00a2b9',
           '#00b3c5']
-lime = '#bee300'
-darklime = '#6eb500'
+greens = [lime, '#9fcf30', '#60cd70']
 
+# SINGLE ROOT
+# set parameters and the initial guess for lambda(alpha, beta)
+alpha = -1.0
+beta = 2.0
+lambda0 = 1.0
+
+# solve the scaling equation using the Newton-Raphson method
+lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0, alpha, beta, 500, 1e-6)
+print(f'lambda({alpha}, {beta}): {lambda_nr}, init.: {lambda0}, iterations: {iterations_nr}')
+print()
+
+# plot the scaling function and its root
 lambdas = np.linspace(0.001, 10, 1000)
 y = [f(alpha, beta, l) for l in lambdas]
 plt.plot(lambdas, y, linewidth=2.4,
@@ -73,13 +78,13 @@ plt.legend()
 plt.savefig('scaling_eq_sol.png', dpi=600)
 plt.show()
 
+# MULTIPLE ROOTS
 alpha_arr = np.linspace(0.5, 10.0, 10)
 beta_arr = np.linspace(0.1, 10.0, 10)
 lambda0_arr = np.linspace(1.0, 10.0, 10)
 
 lambda_nr_arr = []
 
-greens = [lime, '#9fcf30', '#60cd70']
 for c, i in enumerate(range(len(alpha_arr[:3]))):
     alpha = alpha_arr[1]
     beta = beta_arr[i]
@@ -98,7 +103,6 @@ for c, i in enumerate(range(len(alpha_arr[:3]))):
     plt.scatter(lambda0_arr[i], 0, color=greens[i], s=50, zorder=2)
     plt.scatter(lambda_nr_arr[i], 0, color=greens[i], s=200, marker='*', zorder=3, edgecolors=colors[6], linewidth=1.2)
     plt.scatter(lambdas_nr, [0] * len(lambdas_nr), color=colors[c + 4], s=10, zorder=1, alpha=0.4)
-    # plt.axvline(x=lambda_nr_arr[i], color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
     plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
 
 plt.ylim(-0.3, 2)
@@ -109,8 +113,10 @@ plt.legend()
 plt.savefig('scaling_eq_sol_mult.png', dpi=600)
 plt.show()
 
+# compare the asymptotic behavior of the scaling function with the solution of the scaling equation
 lambda_sols = []
 asymptote = []
+
 for i in range(len(beta_arr)):
     alpha = alpha_arr[1]
     beta = beta_arr[i]
@@ -127,9 +133,9 @@ plt.scatter(beta_arr, lambda_sols, s=50, label=r'$\lambda = \lambda(\alpha_1, \b
             zorder=0)
 
 plt.xlabel(r'$\beta$')
-plt.ylabel(r'$\lambda(\alpha_1, \beta)$')
+plt.ylabel(r'$\lambda(\alpha, \beta)$')
 plt.ylim(0, max(lambda_sols) + 0.5)
 plt.xlim(0.0, max(beta_arr) + 0.5)
 plt.legend()
+plt.savefig('asympt_scaling_eq.png', dpi=600)
 plt.show()
-
