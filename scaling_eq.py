@@ -139,3 +139,6 @@ plt.xlim(0.0, max(beta_arr) + 0.5)
 plt.legend()
 plt.savefig('asympt_scaling_eq.png', dpi=600)
 plt.show()
+
+mse = np.mean((np.array(lambda_sols) - np.array(asymptote)) ** 2)
+print(f'MSE: {mse}')
