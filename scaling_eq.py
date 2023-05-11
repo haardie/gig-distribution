@@ -5,24 +5,26 @@ import numpy as np
 # define the 'scaling function' and its derivative
 def f(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
-    return np.sqrt(beta / lambda_) * kv(alpha + 1, arg) / kv(alpha, arg) - 1
+    K = kv(alpha + 2, arg) / kv(alpha + 1, arg)
+    B = np.sqrt(beta / lambda_)
+    return B*K - 1  # Eq
 
 
 def df(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
-    frac_K = kv(alpha + 1, arg) / kv(alpha, arg)
-    frac_B = np.sqrt(beta / lambda_)
-    return frac_K * (frac_B * (1 / (2 * lambda_) + alpha / (2 * lambda_) - (alpha + 1) / lambda_) - alpha * beta / (
-            lambda_ * np.sqrt(beta * lambda_))) - (frac_B * frac_K) ** 2 - frac_B ** 2
+    K = kv(alpha + 2, arg) / kv(alpha +1, arg)
+    B = np.sqrt(beta / lambda_)
+    dEq = -B*K*(alpha+2)/lambda_ + (B*K)**2 - B**2
+    return dEq  # dEq/dlambda
 
 
 # define the Newton-Raphson method
-def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance):
+def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance, step_size_factor):
     lambda_ = lambda_0
     lambda_vals = [lambda_]
     for i in range(max_iter):
-        lambda_new = lambda_ - f(alpha, beta, lambda_) / df(alpha, beta, lambda_)
-        if np.abs(lambda_new - lambda_).any() < tolerance:
+        lambda_new = lambda_ - step_size_factor * f(alpha, beta, lambda_) / df(alpha, beta, lambda_)
+        if np.abs(lambda_new - lambda_) < tolerance:
             break
         lambda_ = lambda_new
         lambda_vals.append(lambda_)
@@ -47,7 +49,7 @@ beta = 2.0
 lambda0 = 1.0
 
 # solve the scaling equation using the Newton-Raphson method
-lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0, alpha, beta, 500, 1e-6)
+lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0, alpha, beta, 500, 1e-6, 0.5)
 print(f'lambda({alpha}, {beta}): {lambda_nr}, init.: {lambda0}, iterations: {iterations_nr}')
 print()
 
@@ -59,7 +61,7 @@ plt.plot(lambdas, y, linewidth=2.4,
                r'\beta\lambda})}{\mathcal{K}_{\alpha}(2\sqrt{\beta\lambda})} - 1 = 0$',
          color=colors[0], zorder=0)
 
-plt.scatter(lambdas_nr, [0] * len(lambdas_nr), label='Newton-Raphsonovy iterované odhady', color=colors[4], s=30,
+plt.scatter(lambdas_nr, [0] * len(lambdas_nr), label='Newton-Raphsonovy iterované odhady', color=colors[4], s=40,
             zorder=1, alpha=0.4)
 
 plt.scatter(lambda0, 0, label=r'Počáteční volba $\lambda = \lambda_0$', color=colors[6], s=50, zorder=2,
@@ -79,9 +81,9 @@ plt.savefig('scaling_eq_sol.png', dpi=600)
 plt.show()
 
 # MULTIPLE ROOTS
-alpha_arr = np.linspace(0.5, 10.0, 10)
-beta_arr = np.linspace(0.1, 10.0, 10)
-lambda0_arr = np.linspace(1.0, 10.0, 10)
+alpha_arr = np.linspace(-1, 5.0, 10)
+beta_arr = np.linspace(0.2, 5.0, 10)
+lambda0_arr = np.linspace(0.8, 6.0, 10)
 
 lambda_nr_arr = []
 
@@ -89,29 +91,30 @@ for c, i in enumerate(range(len(alpha_arr[:3]))):
     alpha = alpha_arr[1]
     beta = beta_arr[i]
     lambda0 = lambda0_arr[i]
-    lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0_arr[i], alpha, beta, 1000, 1e-6)
+    lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0_arr[i], alpha, beta, 50, 1e-5, 0.5)
 
-    print(f'lambda_{i + 1}: {lambda_nr}, init.: {lambda0_arr[1]}, iterations: {iterations_nr + 1}')
+    print(f'lambda_{i + 1}: {lambda_nr}, init.: {lambda0_arr[i]}, iterations: {iterations_nr}')
 
     lambda_nr_arr.append(lambda_nr)
 
     y_mult = [f(alpha, beta, l) for l in lambdas]
 
-    plt.plot(lambdas, y_mult, linewidth=2.4, label=r'$f(\lambda(\alpha_1, \beta_{}))$'.format(i + 1), color=colors[c],
+    plt.plot(lambdas, y_mult, linewidth=2.4, label=r'$f(\lambda(\alpha_2, \beta_{}))$'.format(i + 1), color=colors[c],
              zorder=0)
 
     plt.scatter(lambda0_arr[i], 0, color=greens[i], s=50, zorder=2)
     plt.scatter(lambda_nr_arr[i], 0, color=greens[i], s=200, marker='*', zorder=3, edgecolors=colors[6], linewidth=1.2)
-    plt.scatter(lambdas_nr, [0] * len(lambdas_nr), color=colors[c + 4], s=10, zorder=1, alpha=0.4)
+    plt.scatter(lambdas_nr, [0] * len(lambdas_nr), color=colors[c + 4], s=30, zorder=1, alpha=0.4)
     plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
 
-plt.ylim(-0.3, 2)
-plt.xlim(0, 5)
+plt.ylim(-0.2, 1.0)
+plt.xlim(0.3, 2.5)
 plt.xlabel(r'$\lambda$')
 plt.ylabel(r'$f(\lambda)$')
 plt.legend()
 plt.savefig('scaling_eq_sol_mult.png', dpi=600)
 plt.show()
+
 
 # compare the asymptotic behavior of the scaling function with the solution of the scaling equation
 lambda_sols = []
@@ -121,7 +124,7 @@ for i in range(len(beta_arr)):
     alpha = alpha_arr[1]
     beta = beta_arr[i]
     lambda0 = lambda0_arr[i]
-    lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0_arr[i], alpha_arr[1], beta_arr[i], 1000, 1e-6)
+    lambda_nr, lambdas_nr, iterations_nr = nr_method(f, df, lambda0_arr[i], alpha, beta_arr[i], 100, 1e-6, 0.5)
 
     lambda_sols.append(lambda_nr)
     asymptote.append(beta + 3 / 2)
@@ -129,7 +132,7 @@ for i in range(len(beta_arr)):
 plt.plot(beta_arr, asymptote, linewidth=2.4, label=r'$\lambda(\beta) = \beta + \textstyle\frac{3}{2}$', linestyle='--',
          color='#bdbbbb', zorder=0)
 
-plt.scatter(beta_arr, lambda_sols, s=50, label=r'$\lambda = \lambda(\alpha_1, \beta)$', color=colors[0],
+plt.scatter(beta_arr, lambda_sols, s=30, label=r'$\lambda = \lambda(\alpha_2, \beta)$', color=colors[0],
             zorder=0)
 
 plt.xlabel(r'$\beta$')
@@ -142,3 +145,4 @@ plt.show()
 
 mse = np.mean((np.array(lambda_sols) - np.array(asymptote)) ** 2)
 print(f'MSE: {mse}')
+
