@@ -63,15 +63,16 @@ def get_solvability_constraint(alpha, max_iter, tolerance, step_size_factor):
                         break
                 else:
                     const -= step
+
     else:
-        print(f'alpha = {alpha:.3f} > -2. The scaling equation is solvable for any beta > 0.')
+        print(f'alpha = {alpha:.3f} >= -2. The scaling equation is solvable for any beta > 0.')
     return const
 
 
 # finds the initial guess for the Newton-Raphson method
 def get_initial_guess(alpha, beta):
-    if alpha > -2:
-        initial_guess = alpha + beta + 1  
+    if alpha >= -2:
+        initial_guess = alpha + beta + 1
     else:
         initial_guess = np.abs(get_solvability_constraint(alpha, max_iters, tol, step_size_factor) - 1.5)
     return initial_guess
@@ -147,12 +148,12 @@ plot_nr_solution(dom=domain,
                  f_label=r'$f(\lambda(\alpha, \beta)) = \sqrt{\frac{\beta}{\lambda}}\frac{\mathcal{K}_{\alpha + 2}(2\sqrt{\beta\lambda})}{\mathcal{K}_{\alpha + 1}(2\sqrt{\beta\lambda})} - 1$',
                  init_label=r'Počáteční volba $\lambda = \lambda_0$', iter_label='Newton-Raphsonovy iterované odhady',
                  sol_label=r'Numerické řešení $\lambda(\alpha, \beta)$')
-if alpha <= -2:
+if alpha < -2:
     plt.xlim(0.0, max(init_, solution) + 0.2)
     plt.ylim(-0.2, solution + 0.5)
 else:
     plt.xlim(min(init_, solution) - 1, max(init_, solution) + 1)
-    plt.ylim(-0.2, f(alpha, beta, min(init_, solution) - 1) + 0.2)
+    plt.ylim(-0.2, f(alpha, beta, min(init_, solution)) + 0.2)
 # plt.savefig('scaling_eq_sol.png', dpi=600)
 plt.show()
 
@@ -163,12 +164,12 @@ inits_ = []
 alpha = np.random.uniform(-3.0, 3.0)
 for c, i in enumerate(range(3)):
     const = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
-    
-    if alpha <= -2:
-        beta = -alpha - const + np.random.uniform(0.5, 3.0)
+
+    if alpha < -2:
+        beta = -alpha - const + (i+1) * 0.5
 
     else:
-        beta = np.random.uniform(1.0, 3.0)
+        beta = i+1
 
     print(f'beta_{i + 1}: {beta:.3f}')
     init_ = get_initial_guess(alpha, beta)
@@ -200,7 +201,11 @@ plt.show()
 # compare the asymptotic behavior of the scaling function with the solution of the scaling equation
 print('Asymptotic behavior vs the solution')
 print()
-betas = np.linspace(0.2, 5.0, 10)
+if alpha < -2:
+    c = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
+    betas = [-alpha - c + (n+1)*0.2 for n in range(10)]
+else:
+    betas = np.linspace(1, 10, 10)
 solutions2 = []
 asymptote = []
 
@@ -223,8 +228,8 @@ plot_scattered_data(dom=betas,
                     theor_f_label=r'$\lambda_a(\alpha, \beta) = \alpha + \beta + \textstyle\frac{3}{2}$',
                     xlabel=r'$\beta$', ylabel=r'$\lambda(\alpha, \beta)$',
                     xmin=0.0, xmax=max(betas) + 0.5,
-                    ymin=min(solutions2) - 1, ymax=max(solutions2) + 0.5)
-plt.savefig('asympt_scaling_eq.png', dpi=600)
+                    ymin=min(solutions2) - 1, ymax=max(betas) + alpha + 1.5 + 0.5)
+# plt.savefig('asympt_scaling_eq.png', dpi=600)
 plt.show()
 
 mse = np.mean((np.array(solutions2) - np.array(asymptote)) ** 2)
@@ -232,7 +237,7 @@ print(f'MSE: {mse:.3f}')
 
 # compute and plot the residuals
 residuals = np.abs(np.array(solutions2) - np.array(asymptote))
-params, params_cov = curve_fit(exp_function, betas, residuals)
+params, _ = curve_fit(exp_function, betas, residuals)
 intercept, scale, decay = params
 residuals_fit = exp_function(betas, intercept, scale, decay)
 print('\n Residuals fit:')
@@ -245,6 +250,6 @@ plot_scattered_data(dom=betas,
                     xlabel=r'$\beta$',
                     ylabel=r'$r$',
                     xmin=0.0, xmax=max(betas) + 0.5,
-                    ymin=0.0, ymax=max(residuals) + 0.1)
-plt.savefig('residuals_scaling_eq.png', dpi=600)
+                    ymin=0.0, ymax=max(residuals) + 0.02)
+# plt.savefig('residuals_scaling_eq.png', dpi=600)
 plt.show()
