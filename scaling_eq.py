@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 
+# defines the scaling equation
 def f(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
     k = kv(alpha + 2, arg) / kv(alpha + 1, arg)
@@ -11,6 +12,7 @@ def f(alpha, beta, lambda_):
     return b*k - 1
 
 
+# computes the derivative of the scaling equation
 def df(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
     k = kv(alpha + 2, arg) / kv(alpha + 1, arg)
@@ -19,6 +21,7 @@ def df(alpha, beta, lambda_):
     return d_eq
 
 
+# performs Newton-Raphson method
 def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance, step_size_factor):
     lambda_ = lambda_0
     lambda_vals = [lambda_]
@@ -33,6 +36,48 @@ def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance, step_size_facto
     return lambda_, lambda_vals, i + 1
 
 
+# finds the constraint on alpha and beta for the scaling equation to be solvable
+def get_solvability_constraint(alpha, max_iter, tolerance, step_size_factor):
+
+    const = 2.0
+    step = 0.1
+    if alpha < -2:
+        while True:
+            beta = -alpha - const
+            lambda_0 = np.abs(1.5 - const)
+            if beta <= 0:
+                print(f'beta = {beta}. The scaling equation is not solvable for nonpositive beta.')
+                return None
+            else:
+                # when lambda_ is either nan or near zero, the Newton-Raphson method fails to converge
+                # silence the warning
+                np.seterr(divide='ignore', invalid='ignore')
+                lambda_, _, _ = nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance, step_size_factor)
+                if isinstance(lambda_, float) and lambda_ > 0:  # if the solution is a number and is positive
+                    const += step
+                    step *= 0.1     # decrease the step size (increase the precision of the condition)
+
+                    if step < 1e-5:  # when reaching the 'edge' of float precision, stop
+                        print(f'The solvability constraint is: alpha + beta + {const:.5f} > 0')
+                        print(f'Choose beta > {-alpha - const:.5f}')
+                        break
+                else:
+                    const -= step
+    else:
+        print(f'alpha = {alpha:.3f} > -2. The scaling equation is solvable for any beta > 0.')
+    return const
+
+
+# finds the initial guess for the Newton-Raphson method
+def get_initial_guess(alpha, beta):
+    if alpha > -2:
+        initial_guess = alpha + beta + 1  
+    else:
+        initial_guess = np.abs(get_solvability_constraint(alpha, max_iters, tol, step_size_factor) - 1.5)
+    return initial_guess
+
+
+# plots the solution of the scaling equation
 def plot_nr_solution(dom, f, init_guess, iter_sols, sol, f_color, iter_color, init_color, sol_color, f_label=None, init_label=None, iter_label=None, sol_label=None):
     plt.rcParams['text.usetex'] = True
     plt.rcParams['font.family'] = 'Palatino'
@@ -45,10 +90,11 @@ def plot_nr_solution(dom, f, init_guess, iter_sols, sol, f_color, iter_color, in
     plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
     plt.xlabel(r'$\lambda$')
     plt.ylabel(r'$f(\lambda)$')
-    plt.legend()
+    plt.legend(loc='upper right')
     pass
 
 
+# plots scattered data (residuals, etc.)
 def plot_scattered_data(dom, points, theor_f, points_label, theor_f_label, xlabel, ylabel, xmin, xmax, ymin, ymax):
     plt.rcParams['text.usetex'] = True
     plt.rcParams['font.family'] = 'Palatino'
@@ -59,9 +105,11 @@ def plot_scattered_data(dom, points, theor_f, points_label, theor_f_label, xlabe
     plt.ylabel(ylabel)
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
-    plt.legend()
+    plt.legend(loc='upper right')
     pass
 
+
+# is used to fit the residuals
 def exp_function(x, a, b, c):
     return a * np.exp(-b * x) + c
 
@@ -69,25 +117,27 @@ def exp_function(x, a, b, c):
 colors_cold = ['#b7094c', '#a01a58', '#892b64', '#723c70', '#5c4d7d', '#455e89', '#2e6f95', '#1780a1', '#0091ad', '#00a2b9', '#00b3c5']
 colors_green = ['#bee300', '#9fcf30', '#60cd70']
 
-# set parameters
+
 max_iters = 100
 tol = 1e-6
 step_size_factor = 0.5
+domain = np.linspace(0.001, 10, 1000)
+inits = np.linspace(0.1, 5.0, 10)
 
-alpha = float(input(f'Enter the value of alpha: '))
-beta = float(input(f'Enter the value of beta: '))
-init = float(input(f'Enter the initial guess for lambda: '))
+print('Solve for a sigle pair (alpha, beta):')
 print()
 
-domain = np.linspace(0.001, 10, 1000)
+alpha = float(input(f'Enter the value of alpha: '))
+constraint = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
+beta = float(input(f'Enter the value of beta: \n'))
+init_ = get_initial_guess(alpha, beta)
 
-# solve the scaling equation using the Newton-Raphson method
-solution, iterative_solutions, iters = nr_method(f, df, init, alpha, beta, max_iters, tol, step_size_factor)
-print(f'lambda({alpha}, {beta}): {solution}, init.: {init}, iterations: {iters}')
+solution, iterative_solutions, iters = nr_method(f, df, init_, alpha, beta, max_iters, tol, step_size_factor)
+print(f'lambda({alpha}, {beta}): {solution:.3f}, init.: {init_:.3f}, iterations: {iters}')
 print()
 
 plot_nr_solution(dom=domain,
-                 f=[f(alpha, beta, lambda_) for lambda_ in domain], init_guess=init,
+                 f=[f(alpha, beta, lambda_) for lambda_ in domain], init_guess=init_,
                  iter_sols=iterative_solutions,
                  sol=solution,
                  f_color=colors_cold[0],
@@ -97,27 +147,43 @@ plot_nr_solution(dom=domain,
                  f_label=r'$f(\lambda(\alpha, \beta)) = \sqrt{\frac{\beta}{\lambda}}\frac{\mathcal{K}_{\alpha + 2}(2\sqrt{\beta\lambda})}{\mathcal{K}_{\alpha + 1}(2\sqrt{\beta\lambda})} - 1$',
                  init_label=r'Počáteční volba $\lambda = \lambda_0$', iter_label='Newton-Raphsonovy iterované odhady',
                  sol_label=r'Numerické řešení $\lambda(\alpha, \beta)$')
-plt.xlim(min(init, solution) - 1, max(init, solution) + 1)
-plt.ylim(-0.2, f(alpha, beta, min(init, solution) - 1) + 1)
-plt.savefig('scaling_eq_sol.png', dpi=600)
+if alpha <= -2:
+    plt.xlim(0.0, max(init_, solution) + 0.2)
+    plt.ylim(-0.2, solution + 0.5)
+else:
+    plt.xlim(min(init_, solution) - 1, max(init_, solution) + 1)
+    plt.ylim(-0.2, f(alpha, beta, min(init_, solution) - 1) + 0.2)
+# plt.savefig('scaling_eq_sol.png', dpi=600)
 plt.show()
 
-betas = np.linspace(0.2, 5.0, 10)
-inits = np.linspace(1.0, 6.0, 10)
-
+print('Solve for a range of (alpha, beta):')
 solutions = []
-for c, i in enumerate(range(3)):
-    beta = betas[i]
-    init = inits[i]
-    solution, iterative_solutions, iters = nr_method(f, df, inits[i], alpha, beta, max_iters, tol, step_size_factor)
+inits_ = []
 
-    print(f'lambda_{i + 1}: {solution:.3f}, init.: {inits[i]:.3f}, iterations: {iters}')
+alpha = np.random.uniform(-3.0, 3.0)
+for c, i in enumerate(range(3)):
+    const = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
+    
+    if alpha <= -2:
+        beta = -alpha - const + np.random.uniform(0.5, 3.0)
+
+    else:
+        beta = np.random.uniform(1.0, 3.0)
+
+    print(f'beta_{i + 1}: {beta:.3f}')
+    init_ = get_initial_guess(alpha, beta)
+    inits_.append(init_)
+
+    solution, iterative_solutions, iters = nr_method(f, df, init_, alpha, beta, max_iters, tol, step_size_factor)
+
+    print(f'lambda_{i + 1}: {solution:.3f}, init.: {init_:.3f}, iterations: {iters}')
+    print()
 
     solutions.append(solution)
 
     plot_nr_solution(dom=domain,
                      f=[f(alpha, beta, lambda_) for lambda_ in domain],
-                     init_guess=inits[i],
+                     init_guess=init_,
                      iter_sols=iterative_solutions,
                      sol=solutions[i],
                      f_color=colors_cold[c],
@@ -126,28 +192,29 @@ for c, i in enumerate(range(3)):
                      sol_color=colors_green[i],
                      f_label=r'$f(\lambda(\alpha, \beta_{}))$'.format(i + 1))
 
-plt.xlim(min(inits[0], solutions[0]) - 0.5, max(solutions[2], inits[2]) + 0.5)
-plt.ylim(-0.2, f(alpha, betas[2], min(inits[2], solutions[2]) - 0.5) + 0.5)
-plt.savefig('scaling_eq_sol_mult.png', dpi=600)
+plt.xlim(min(min(inits_), min(solutions)) - 1, max(max(solutions), max(inits_)) + 0.5)
+plt.ylim(-0.2, f(alpha, beta, min(min(inits_), min(solutions))) + 0.7)
+# plt.savefig('scaling_eq_sol_mult.png', dpi=600)
 plt.show()
 
-
 # compare the asymptotic behavior of the scaling function with the solution of the scaling equation
+print('Asymptotic behavior vs the solution')
+print()
+betas = np.linspace(0.2, 5.0, 10)
 solutions2 = []
 asymptote = []
 
 for i in range(len(betas)):
     beta = betas[i]
-    init = inits[i]
-    solution, iterative_solutions, iters = nr_method(f, df, inits[i], alpha, betas[i], max_iters, tol, step_size_factor)
+    init_ = get_initial_guess(alpha, beta)
+    solution, iterative_solutions, iters = nr_method(f, df, init_, alpha, betas[i], max_iters, tol, step_size_factor)
 
     solutions2.append(solution)
     asymptote.append(alpha + beta + 1.5)
 
-
 solution_fit = np.polyfit(betas, solutions2, 1)
 print('\n Solution fit:')
-print(f'lambda(beta) = {solution_fit[0]:.3f} * beta + {solution_fit[1]:.3f}')
+print(f'lambda(alpha, beta) = {solution_fit[0]:.3f} * beta + alpha + {(solution_fit[1] - alpha):.3f}')
 
 plot_scattered_data(dom=betas,
                     points=solutions2,
@@ -160,11 +227,10 @@ plot_scattered_data(dom=betas,
 plt.savefig('asympt_scaling_eq.png', dpi=600)
 plt.show()
 
-
 mse = np.mean((np.array(solutions2) - np.array(asymptote)) ** 2)
-print('\n Asymptotic behaviour vs solution:')
 print(f'MSE: {mse:.3f}')
 
+# compute and plot the residuals
 residuals = np.abs(np.array(solutions2) - np.array(asymptote))
 params, params_cov = curve_fit(exp_function, betas, residuals)
 intercept, scale, decay = params
@@ -179,6 +245,6 @@ plot_scattered_data(dom=betas,
                     xlabel=r'$\beta$',
                     ylabel=r'$r$',
                     xmin=0.0, xmax=max(betas) + 0.5,
-                    ymin=min(residuals) - 0.1, ymax=max(residuals) + 0.1)
+                    ymin=0.0, ymax=max(residuals) + 0.1)
 plt.savefig('residuals_scaling_eq.png', dpi=600)
 plt.show()
