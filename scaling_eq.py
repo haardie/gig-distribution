@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from scipy.special import kv
+import scipy
 import numpy as np
 from scipy.optimize import curve_fit
 
@@ -7,17 +7,16 @@ from scipy.optimize import curve_fit
 # defines the scaling equation
 def f(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
-    k = kv(alpha + 2, arg) / kv(alpha + 1, arg)
+    k = scipy.special.kv(alpha + 2, arg) / scipy.special.kv(alpha + 1, arg)
     b = np.sqrt(beta / lambda_)
     return b*k - 1
-
 
 # computes the derivative of the scaling equation
 def df(alpha, beta, lambda_):
     arg = 2 * np.sqrt(beta * lambda_)
-    k = kv(alpha + 2, arg) / kv(alpha + 1, arg)
+    k = scipy.special.kv(alpha + 2, arg) / scipy.special.kv(alpha + 1, arg)
     b = np.sqrt(beta / lambda_)
-    d_eq = -b * k * (alpha + 2) / lambda_ + (b * k) ** 2 - b ** 2
+    d_eq = -b * k * ((alpha + 2) / lambda_) + (b * k) ** 2 - b ** 2
     return d_eq
 
 
@@ -38,7 +37,6 @@ def nr_method(f, df, lambda_0, alpha, beta, max_iter, tolerance, step_size_facto
 
 # finds the constraint on alpha and beta for the scaling equation to be solvable
 def get_solvability_constraint(alpha, max_iter, tolerance, step_size_factor):
-
     const = 2.0
     step = 0.1
     if alpha < -2:
@@ -71,27 +69,27 @@ def get_solvability_constraint(alpha, max_iter, tolerance, step_size_factor):
 
 # finds the initial guess for the Newton-Raphson method
 def get_initial_guess(alpha, beta):
-    if alpha >= -2:
-        initial_guess = alpha + beta + 1
-    else:
-        initial_guess = np.abs(get_solvability_constraint(alpha, max_iters, tol, step_size_factor) - 1.5)
+    initial_guess = alpha + beta + 1.0
     return initial_guess
 
 
 # plots the solution of the scaling equation
-def plot_nr_solution(dom, f, init_guess, iter_sols, sol, f_color, iter_color, init_color, sol_color, f_label=None, init_label=None, iter_label=None, sol_label=None):
+def plot_nr_solution(dom, f, init_guess, iter_sols, sol, f_color, iter_color, init_color, sol_color, f_label=None, 
+                     init_label=None, iter_label=None, sol_label=None):
+    
     plt.rcParams['text.usetex'] = True
     plt.rcParams['font.family'] = 'Palatino'
     plt.rcParams['font.size'] = 10
     plt.plot(dom, f, linewidth=2.4, label=f_label, color=f_color, zorder=0)
     plt.scatter(iter_sols, [0] * len(iter_sols), label=iter_label, color=iter_color, s=40, zorder=1, alpha=0.4)
     plt.scatter(init_guess, 0, label=init_label, color=init_color, s=50, zorder=2)
-    plt.scatter(sol, 0, label=sol_label, color=sol_color, s=200, marker='*', zorder=3, edgecolors=colors_cold[6], linewidth=1)
+    plt.scatter(sol, 0, label=sol_label, color=sol_color, s=200, marker='*', zorder=3, 
+                edgecolors=colors_cold[6], linewidth=1)
     plt.axvline(sol, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
     plt.axhline(y=0, color='#bdbbbb', linestyle='--', linewidth=1.2, zorder=0)
     plt.xlabel(r'$\lambda$')
-    plt.ylabel(r'$f(\lambda)$')
-    plt.legend(loc='upper right')
+    plt.ylabel(r'$F(\lambda)$')
+    plt.legend(loc='upper right', frameon=False)
     pass
 
 
@@ -106,17 +104,29 @@ def plot_scattered_data(dom, points, theor_f, points_label, theor_f_label, xlabe
     plt.ylabel(ylabel)
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper right', frameon=False)
     pass
 
 
 # is used to fit the residuals
 def exp_function(x, a, b, c):
+    x = np.array(x)
     return a * np.exp(-b * x) + c
 
 
-colors_cold = ['#b7094c', '#a01a58', '#892b64', '#723c70', '#5c4d7d', '#455e89', '#2e6f95', '#1780a1', '#0091ad', '#00a2b9', '#00b3c5']
-colors_green = ['#bee300', '#9fcf30', '#60cd70']
+# defines GIG pdf
+def gig_pdf(x, alpha, beta, lambda_):
+    x = np.array(x)
+    b = beta/lambda_
+    arg = 2 * np.sqrt(beta * lambda_)
+    k = scipy.special.kv(alpha + 1, arg)
+    pdf = 0.5*(b**(-(alpha+1)/2))*(1/k)*(x**(alpha+1))*np.exp(-(beta/x + lambda_*x)/2)
+    return pdf
+
+
+colors_cold = ['#b7094c', '#a01a58', '#892b64', '#723c70', '#5c4d7d', '#455e89', 
+               '#2e6f95', '#1780a1', '#0091ad', '#00a2b9', '#00b3c5']
+colors_green = ['#bee300', '#9fcf30', '#60cd70', '#88b400']
 
 
 max_iters = 100
@@ -145,8 +155,8 @@ plot_nr_solution(dom=domain,
                  iter_color=colors_cold[4],
                  init_color=colors_cold[6],
                  sol_color=colors_green[0],
-                 f_label=r'$f(\lambda(\alpha, \beta)) = \sqrt{\frac{\beta}{\lambda}}\frac{\mathcal{K}_{\alpha + 2}(2\sqrt{\beta\lambda})}{\mathcal{K}_{\alpha + 1}(2\sqrt{\beta\lambda})} - 1$',
-                 init_label=r'Počáteční volba $\lambda = \lambda_0$', iter_label='Newton-Raphsonovy iterované odhady',
+                 f_label=r'$F(\lambda(\alpha, \beta)) = \sqrt{\frac{\beta}{\lambda}}\frac{\mathcal{K}_{\alpha + 2}(2\sqrt{\beta\lambda})}{\mathcal{K}_{\alpha + 1}(2\sqrt{\beta\lambda})} - 1$',
+                 init_label=r'Počáteční volba $\lambda = \lambda_0$', iter_label='Newtonovy-Raphsonovy iterované odhady',
                  sol_label=r'Numerické řešení $\lambda(\alpha, \beta)$')
 if alpha < -2:
     plt.xlim(0.0, max(init_, solution) + 0.2)
@@ -154,14 +164,17 @@ if alpha < -2:
 else:
     plt.xlim(min(init_, solution) - 1, max(init_, solution) + 1)
     plt.ylim(-0.2, f(alpha, beta, min(init_, solution)) + 0.2)
-# plt.savefig('scaling_eq_sol.png', dpi=600)
+
+plt.title(r'$\alpha = {:.0f}, \beta = {:.0f}$'.format(alpha, beta))
+plt.savefig('scaling_eq_sol.png', dpi=600, bbox_inches='tight')
 plt.show()
 
 print('Solve for a range of (alpha, beta):')
 solutions = []
 inits_ = []
 
-alpha = np.random.uniform(-3.0, 3.0)
+# alpha = np.random.uniform(-3.0, 3.0)
+alpha = -1.412
 for c, i in enumerate(range(3)):
     const = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
 
@@ -191,21 +204,24 @@ for c, i in enumerate(range(3)):
                      iter_color=colors_cold[c + 4],
                      init_color=colors_green[i],
                      sol_color=colors_green[i],
-                     f_label=r'$f(\lambda(\alpha, \beta_{}))$'.format(i + 1))
+                     f_label=r'$F(\lambda(\alpha, \beta_{}))$'.format(i + 1))
 
-plt.xlim(min(min(inits_), min(solutions)) - 1, max(max(solutions), max(inits_)) + 0.5)
-plt.ylim(-0.2, f(alpha, beta, min(min(inits_), min(solutions))) + 0.7)
-# plt.savefig('scaling_eq_sol_mult.png', dpi=600)
+plt.xlim(min(min(inits_), min(solutions)) - 0.5, max(max(solutions), max(inits_)) + 0.5)
+plt.ylim(-0.2, f(alpha, beta, min(min(inits_), min(solutions))) + 1)
+plt.title(r'$\alpha \doteq -1.4,\hspace{0.8mm} \beta_1 = 1,\hspace{0.8mm} \beta_2 = 2, \hspace{0.8mm} \beta_3 = 3$')
+plt.savefig('scaling_eq_sol_mult.png', dpi=600, bbox_inches='tight')
 plt.show()
 
 # compare the asymptotic behavior of the scaling function with the solution of the scaling equation
 print('Asymptotic behavior vs the solution')
 print()
+
 if alpha < -2:
     c = get_solvability_constraint(alpha, max_iters, tol, step_size_factor)
-    betas = [-alpha - c + (n+1)*0.2 for n in range(10)]
+    betas = [-alpha - c + (i+1)*0.2 for i in range(10)]
 else:
     betas = np.linspace(1, 10, 10)
+
 solutions2 = []
 asymptote = []
 
@@ -227,16 +243,16 @@ plot_scattered_data(dom=betas,
                     points_label=r'$\lambda = \lambda(\alpha, \beta)$',
                     theor_f_label=r'$\lambda_a(\alpha, \beta) = \alpha + \beta + \textstyle\frac{3}{2}$',
                     xlabel=r'$\beta$', ylabel=r'$\lambda(\alpha, \beta)$',
-                    xmin=0.0, xmax=max(betas) + 0.5,
-                    ymin=min(solutions2) - 1, ymax=max(betas) + alpha + 1.5 + 0.5)
-# plt.savefig('asympt_scaling_eq.png', dpi=600)
+                    xmin=min(betas) - 0.1, xmax=max(betas) + 0.1,
+                    ymin=min(solutions2) - 0.2, ymax=max(betas) + alpha + 1.5 + 0.5)
+plt.savefig('asympt_scaling_eq.png', dpi=600, bbox_inches='tight')
 plt.show()
 
 mse = np.mean((np.array(solutions2) - np.array(asymptote)) ** 2)
 print(f'MSE: {mse:.3f}')
 
 # compute and plot the residuals
-residuals = np.abs(np.array(solutions2) - np.array(asymptote))
+residuals = np.abs(np.array(solutions2) - np.array(asymptote))/np.array(asymptote)
 params, _ = curve_fit(exp_function, betas, residuals)
 intercept, scale, decay = params
 residuals_fit = exp_function(betas, intercept, scale, decay)
@@ -245,11 +261,63 @@ print(f'r(beta) = {intercept:.3f} + {scale:.3f} * exp(-{decay:.3f} * beta)')
 plot_scattered_data(dom=betas,
                     points=residuals,
                     theor_f=residuals_fit,
-                    points_label=r'$r = |\lambda(\alpha, \beta) - \lambda_a(\alpha, \beta)|$',
-                    theor_f_label=r'$f(\beta) = {} + {} e^{{-{} \cdot \beta}}$'.format(round(intercept, 2), round(scale, 2), round(decay, 2)),
+                    points_label=r'$r = |(\lambda(\alpha, \beta) - \lambda_a(\alpha, \beta))\cdot\lambda_a^{-1}|$',
+                    theor_f_label=r'$R(\beta) = {} + {} e^{{-{} \cdot \beta}}$'.format(round(intercept, 2), round(scale, 2), round(decay, 2)),
                     xlabel=r'$\beta$',
                     ylabel=r'$r$',
-                    xmin=0.0, xmax=max(betas) + 0.5,
+                    xmin=min(betas) - 0.1, xmax=max(betas) + 0.1,
                     ymin=0.0, ymax=max(residuals) + 0.02)
-# plt.savefig('residuals_scaling_eq.png', dpi=600)
+plt.savefig('residuals_scaling_eq.png', dpi=600, bbox_inches='tight')
+plt.show()
+
+# compare the GIG pdf for asymptotic lambda with the NR solution
+x = np.linspace(0.001, 5.0, int(1e2))
+alpha = -3.0
+beta = 3.0
+init_ = get_initial_guess(alpha, beta)
+lambda_, _, _ = nr_method(f, df, init_, alpha, beta, max_iters, tol, step_size_factor)
+pdf = gig_pdf(x, alpha, beta, lambda_)
+pdf_asympt = gig_pdf(x, alpha, beta, alpha + beta + 1.5)
+
+auc = np.trapz(pdf, x=x)    # area under the curve
+auc_asympt = np.trapz(pdf_asympt, x=x)
+
+abc = np.abs(auc - auc_asympt)  # area between the curves
+
+print(f'Asymptotic AUC: {auc_asympt:.3f}')
+print(f'NR solution AUC: {auc:.3f}')
+print(f'ABC: {abc:.3f}')
+
+plt.plot(x, pdf, label=r'$f(x, \alpha, \beta, \lambda)$', linewidth=2.4, color=colors_green[0])
+plt.plot(x, pdf_asympt, label=r'$f(x, \alpha, \beta, \lambda_a)$', linewidth=2.4, color=colors_cold[0])
+plt.fill_between(x, pdf, pdf_asympt, color=colors_cold[7], alpha=0.6, hatch='//', 
+                 edgecolor=colors_cold[6], linewidth=0.7)
+plt.text(1.2, 11.0, r'$ABC \doteq {}$'.format(round(abc, 2)), fontsize=12, color=colors_cold[6])
+plt.xlabel(r'$x$')
+plt.ylabel(r'$f(x, \alpha, \beta, \lambda)$')
+plt.legend(frameon=False, fontsize=10)
+plt.xlim(0.0, 5.0)
+plt.ylim(0.0, max(pdf) + 0.5)
+plt.savefig('gig_pdf_scaling_eq.png', dpi=600, bbox_inches='tight')
+plt.show()
+
+
+if auc > 1:
+    print('Your are not dealing with a pdf. Normalization triggered.')
+
+    pdf = pdf / auc
+    pdf_asympt = pdf_asympt / auc_asympt
+    abc = np.abs(np.trapz(pdf - pdf_asympt, x=x))
+
+plt.plot(x, pdf, label=r'$f(x, \alpha, \beta, \lambda)$', linewidth=2.4, color=colors_green[0])
+plt.plot(x, pdf_asympt, label=r'$f(x, \alpha, \beta, \lambda_a)$', linewidth=2.4, color=colors_cold[0])
+plt.fill_between(x, pdf, pdf_asympt, color=colors_cold[7], alpha=0.6, hatch='//', 
+                 edgecolor=colors_cold[6], linewidth=0.7)
+plt.text(1.2, 0.8, r'$ABC \doteq {:.2e}$'.format(abc), fontsize=12, color=colors_cold[6])
+plt.xlabel(r'$x$')
+plt.ylabel(r'$f(x, \alpha, \beta, \lambda)$')
+plt.legend(frameon=False, fontsize=10)
+plt.xlim(0.0, 5.0)
+plt.ylim(0.0, max(pdf) + 0.05)
+plt.savefig('gig_pdf_norm_scaling_eq.png', dpi=600, bbox_inches='tight')
 plt.show()
